@@ -1080,7 +1080,7 @@ BOOST_AUTO_TEST_CASE(basic_merkle_test)
 
     CMutableTransaction tx1 = fixture.MakeClaim(fixture.GetCoinbase(), sName, sValue, 10);
     fixture.IncrementBlocks(20);
-    uint256 tx1MerkleHash = fixture.getMerkleHash();
+    auto tx1MerkleHash = fixture.getMerkleHash();
     fixture.DecrementBlocks(20);
     BOOST_CHECK(tx1MerkleHash != fixture.getMerkleHash());
     fixture.CommitTx(tx1);
@@ -1162,7 +1162,7 @@ BOOST_AUTO_TEST_CASE(supporting_claims_test)
     BOOST_CHECK(fixture.getInfoForName(sName, val));
     BOOST_CHECK_EQUAL(val.outPoint.hash, tx1.GetHash());
     BOOST_CHECK_EQUAL(val.outPoint.n, 0);
-    uint256 tx1MerkleHash = fixture.getMerkleHash();
+    auto tx1MerkleHash = fixture.getMerkleHash();
 
     CMutableTransaction tx4 = BuildTransaction(tx1);
     CMutableTransaction tx5 = BuildTransaction(tx2);
@@ -1485,7 +1485,7 @@ BOOST_AUTO_TEST_CASE(supporting_claims2_test)
     fixture.CommitTx(tx2);
     fixture.IncrementBlocks(1); // 7
 
-    uint256 rootMerkleHash = fixture.getMerkleHash();
+    auto rootMerkleHash = fixture.getMerkleHash();
 
     BOOST_CHECK(!pclaimTrie->empty());
     BOOST_CHECK(!fixture.queueEmpty());

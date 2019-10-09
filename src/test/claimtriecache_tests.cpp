@@ -1,4 +1,5 @@
-#include <claimtrie.h>
+
+#include <claimtrie/forks.h>
 #include <nameclaim.h>
 #include <uint256.h>
 #include <validation.h>
@@ -48,7 +49,7 @@ BOOST_FIXTURE_TEST_SUITE(claimtriecache_tests, RegTestingSetup)
 BOOST_AUTO_TEST_CASE(merkle_hash_single_test)
 {
     // check empty trie
-    uint256 one(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
+    auto one = uint256S("0000000000000000000000000000000000000000000000000000000000000001");
     CClaimTrieCacheTest cc(pclaimTrie);
     BOOST_CHECK_EQUAL(one, cc.getMerkleHash());
 
@@ -60,31 +61,31 @@ BOOST_AUTO_TEST_CASE(merkle_hash_single_test)
 BOOST_AUTO_TEST_CASE(merkle_hash_multiple_test)
 {
     CClaimValue unused;
-    uint256 hash0(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
-    uint160 hash160;
+    auto hash0 = uint256S("0000000000000000000000000000000000000000000000000000000000000001");
+    CUint160 hash160;
     CMutableTransaction tx1 = BuildTransaction(hash0);
-    COutPoint tx1OutPoint(tx1.GetHash(), 0);
+    CTxOutPoint tx1OutPoint(tx1.GetHash(), 0);
     CMutableTransaction tx2 = BuildTransaction(tx1.GetHash());
-    COutPoint tx2OutPoint(tx2.GetHash(), 0);
+    CTxOutPoint tx2OutPoint(tx2.GetHash(), 0);
     CMutableTransaction tx3 = BuildTransaction(tx2.GetHash());
-    COutPoint tx3OutPoint(tx3.GetHash(), 0);
+    CTxOutPoint tx3OutPoint(tx3.GetHash(), 0);
     CMutableTransaction tx4 = BuildTransaction(tx3.GetHash());
-    COutPoint tx4OutPoint(tx4.GetHash(), 0);
+    CTxOutPoint tx4OutPoint(tx4.GetHash(), 0);
     CMutableTransaction tx5 = BuildTransaction(tx4.GetHash());
-    COutPoint tx5OutPoint(tx5.GetHash(), 0);
+    CTxOutPoint tx5OutPoint(tx5.GetHash(), 0);
     CMutableTransaction tx6 = BuildTransaction(tx5.GetHash());
-    COutPoint tx6OutPoint(tx6.GetHash(), 0);
+    CTxOutPoint tx6OutPoint(tx6.GetHash(), 0);
 
-    uint256 hash1;
+    CUint256 hash1;
     hash1.SetHex("71c7b8d35b9a3d7ad9a1272b68972979bbd18589f1efe6f27b0bf260a6ba78fa");
 
-    uint256 hash2;
+    CUint256 hash2;
     hash2.SetHex("c4fc0e2ad56562a636a0a237a96a5f250ef53495c2cb5edd531f087a8de83722");
 
-    uint256 hash3;
+    CUint256 hash3;
     hash3.SetHex("baf52472bd7da19fe1e35116cfb3bd180d8770ffbe3ae9243df1fb58a14b0975");
 
-    uint256 hash4;
+    CUint256 hash4;
     hash4.SetHex("c73232a755bf015f22eaa611b283ff38100f2a23fb6222e86eca363452ba0c51");
 
     BOOST_CHECK(pclaimTrie->empty());
@@ -184,10 +185,10 @@ BOOST_AUTO_TEST_CASE(basic_insertion_info_test)
     CClaimTrieCacheTest ctc(pclaimTrie);
 
     // create and insert claim
-    uint256 hash0(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
+    auto hash0 = uint256S("0000000000000000000000000000000000000000000000000000000000000001");
     CMutableTransaction tx1 = BuildTransaction(hash0);
-    uint160 claimId = ClaimIdHash(tx1.GetHash(), 0);
-    COutPoint claimOutPoint(tx1.GetHash(), 0);
+    CUint160 claimId = ClaimIdHash(tx1.GetHash(), 0);
+    CTxOutPoint claimOutPoint(tx1.GetHash(), 0);
     CAmount amount(10);
     int height = 0;
     int validHeight = 0;
@@ -208,9 +209,9 @@ BOOST_AUTO_TEST_CASE(basic_insertion_info_test)
 
     // insert a support
     CAmount supportAmount(10);
-    uint256 hash1(uint256S("0000000000000000000000000000000000000000000000000000000000000002"));
+    auto hash1 = uint256S("0000000000000000000000000000000000000000000000000000000000000002");
     CMutableTransaction tx2 = BuildTransaction(hash1);
-    COutPoint supportOutPoint(tx2.GetHash(), 0);
+    CTxOutPoint supportOutPoint(tx2.GetHash(), 0);
 
     CSupportValue support(supportOutPoint, claimId, supportAmount, height, validHeight);
     ctc.insertSupportIntoMap("test", support, false);
@@ -228,8 +229,8 @@ BOOST_AUTO_TEST_CASE(recursive_prune_test)
     CClaimTrieCacheTest cc(pclaimTrie);
     BOOST_CHECK_EQUAL(0, cc.cacheSize());
 
-    COutPoint outpoint;
-    uint160 claimId;
+    CTxOutPoint outpoint;
+    CUint160 claimId;
     CAmount amount(20);
     int height = 0;
     int validAtHeight = 0;
@@ -273,11 +274,11 @@ BOOST_AUTO_TEST_CASE(iteratetrie_test)
     BOOST_CHECK(pclaimTrie->empty());
     CClaimTrieCacheTest ctc(pclaimTrie);
 
-    uint256 hash0(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
+    auto hash0 = uint256S("0000000000000000000000000000000000000000000000000000000000000001");
     CMutableTransaction tx1 = BuildTransaction(hash0);
 
-    const uint256 txhash = tx1.GetHash();
-    CClaimValue claimVal(COutPoint(txhash, 0), ClaimIdHash(txhash, 0), CAmount(10), 0, 0);
+    const auto txhash = tx1.GetHash();
+    CClaimValue claimVal(CTxOutPoint(txhash, 0), ClaimIdHash(txhash, 0), CAmount(10), 0, 0);
     ctc.insertClaimIntoTrie("test", claimVal, true);
     BOOST_CHECK(ctc.flush());
 
@@ -295,8 +296,7 @@ BOOST_AUTO_TEST_CASE(trie_stays_consistent_test)
         "goodness", "goodnight", "goodnatured", "goods", "go", "goody", "goo"
     };
 
-    CClaimTrie trie(true, false, 1);
-    CClaimTrieCacheTest cache(&trie);
+    CClaimTrieCacheTest cache(pclaimTrie);
     CClaimValue value;
 
     for (auto& name: names)
@@ -307,68 +307,17 @@ BOOST_AUTO_TEST_CASE(trie_stays_consistent_test)
 
     for (auto& name: names) {
         CClaimValue temp;
-        BOOST_CHECK(cache.removeClaimFromTrie(name, COutPoint(), temp, false));
+        BOOST_CHECK(cache.removeClaimFromTrie(name, CTxOutPoint(), temp, false));
         cache.flush();
         BOOST_CHECK(cache.checkConsistency());
     }
-    BOOST_CHECK(trie.empty());
-}
-
-BOOST_AUTO_TEST_CASE(takeover_workaround_triggers)
-{
-    auto& consensus = const_cast<Consensus::Params&>(Params().GetConsensus());
-    auto currentMax = consensus.nMaxTakeoverWorkaroundHeight;
-    consensus.nMaxTakeoverWorkaroundHeight = 10000;
-    BOOST_SCOPE_EXIT(&consensus, currentMax) { consensus.nMaxTakeoverWorkaroundHeight = currentMax; }
-    BOOST_SCOPE_EXIT_END
-
-    CClaimTrie trie(true, false, 1);
-    CClaimTrieCacheTest cache(&trie);
-
-    insertUndoType icu, isu; claimQueueRowType ecu; supportQueueRowType esu;
-    std::vector<std::pair<std::string, int>> thu;
-    BOOST_CHECK(cache.incrementBlock(icu, ecu, isu, esu, thu));
-
-    CClaimValue value;
-    value.nHeight = 1;
-
-    BOOST_CHECK(cache.insertClaimIntoTrie("a", value, true));
-    BOOST_CHECK(cache.insertClaimIntoTrie("b", value, true));
-    BOOST_CHECK(cache.insertClaimIntoTrie("c", value, true));
-    BOOST_CHECK(cache.insertClaimIntoTrie("aa", value, true));
-    BOOST_CHECK(cache.insertClaimIntoTrie("bb", value, true));
-    BOOST_CHECK(cache.insertClaimIntoTrie("cc", value, true));
-    BOOST_CHECK(cache.insertSupportIntoMap("aa", CSupportValue(), false));
-
-    BOOST_CHECK(cache.incrementBlock(icu, ecu, isu, esu, thu));
-    BOOST_CHECK(cache.flush());
-    BOOST_CHECK(cache.incrementBlock(icu, ecu, isu, esu, thu));
-    BOOST_CHECK_EQUAL(0, cache.cacheSize());
-
-    CSupportValue temp;
-    BOOST_CHECK(cache.insertSupportIntoMap("bb", temp, false));
-    BOOST_CHECK(!cache.getCache("aa"));
-    BOOST_CHECK(cache.removeSupportFromMap("aa", COutPoint(), temp, false));
-
-    BOOST_CHECK(cache.removeClaimFromTrie("aa", COutPoint(), value, false));
-    BOOST_CHECK(cache.removeClaimFromTrie("bb", COutPoint(), value, false));
-    BOOST_CHECK(cache.removeClaimFromTrie("cc", COutPoint(), value, false));
-
-    BOOST_CHECK(cache.insertClaimIntoTrie("aa", value, true));
-    BOOST_CHECK(cache.insertClaimIntoTrie("bb", value, true));
-    BOOST_CHECK(cache.insertClaimIntoTrie("cc", value, true));
-
-    BOOST_CHECK(cache.incrementBlock(icu, ecu, isu, esu, thu));
-
-    BOOST_CHECK_EQUAL(3, cache.getCache("aa")->nHeightOfLastTakeover);
-    BOOST_CHECK_EQUAL(3, cache.getCache("bb")->nHeightOfLastTakeover);
-    BOOST_CHECK_EQUAL(1, cache.getCache("cc")->nHeightOfLastTakeover);
+    BOOST_CHECK(pclaimTrie->empty());
 }
 
 BOOST_AUTO_TEST_CASE(verify_basic_serialization)
 {
     CClaimValue cv;
-    cv.outPoint = COutPoint(uint256S("123"), 2);
+    cv.outPoint = CTxOutPoint(CUint256S("123"), 2);
     cv.nHeight = 3;
     cv.claimId.SetHex("4567");
     cv.nEffectiveAmount = 4;
@@ -388,7 +337,7 @@ BOOST_AUTO_TEST_CASE(claimtrienode_serialize_unserialize)
 {
     CDataStream ss(SER_DISK, 0);
 
-    uint160 hash160;
+    CUint160 hash160;
 
     CClaimTrieData n1;
     CClaimTrieData n2;
@@ -398,8 +347,8 @@ BOOST_AUTO_TEST_CASE(claimtrienode_serialize_unserialize)
     ss >> n2;
     BOOST_CHECK_EQUAL(n1, n2);
 
-    CClaimValue v1(COutPoint(uint256S("0000000000000000000000000000000000000000000000000000000000000001"), 0), hash160, 50, 0, 100);
-    CClaimValue v2(COutPoint(uint256S("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"), 1), hash160, 100, 1, 101);
+    CClaimValue v1(CTxOutPoint(CUint256S("0000000000000000000000000000000000000000000000000000000000000001"), 0), hash160, 50, 0, 100);
+    CClaimValue v2(CTxOutPoint(CUint256S("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"), 1), hash160, 100, 1, 101);
 
     n1.insertClaim(v1);
     BOOST_CHECK(n1 != n2);
@@ -428,14 +377,14 @@ BOOST_AUTO_TEST_CASE(claimtrienode_serialize_unserialize)
 
 BOOST_AUTO_TEST_CASE(claimtrienode_remove_invalid_claim)
 {
-    uint160 hash160;
+    CUint160 hash160;
 
     CClaimTrieData n1;
     CClaimTrieData n2;
     CClaimValue throwaway;
 
-    CClaimValue v1(COutPoint(uint256S("0000000000000000000000000000000000000000000000000000000000000001"), 0), hash160, 50, 0, 100);
-    CClaimValue v2(COutPoint(uint256S("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"), 1), hash160, 100, 1, 101);
+    CClaimValue v1(CTxOutPoint(CUint256S("0000000000000000000000000000000000000000000000000000000000000001"), 0), hash160, 50, 0, 100);
+    CClaimValue v2(CTxOutPoint(CUint256S("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"), 1), hash160, 100, 1, 101);
 
     n1.insertClaim(v1);
     n2.insertClaim(v2);

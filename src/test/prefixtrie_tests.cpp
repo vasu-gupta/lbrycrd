@@ -1,5 +1,6 @@
-#include <claimtrie.h>
-#include <prefixtrie.h>
+
+#include <claimtrie/prefixtrie.h>
+#include <claimtrie/trie.h>
 #include <random.h>
 
 #include <boost/test/unit_test.hpp>

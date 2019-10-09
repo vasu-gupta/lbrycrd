@@ -6,7 +6,7 @@
 
 using namespace std;
 
-void ValidatePairs(CClaimTrieCache& cache, const std::vector<std::pair<bool, uint256>>& pairs, uint256 claimHash)
+void ValidatePairs(CClaimTrieCache& cache, const std::vector<std::pair<bool, CUint256>>& pairs, CUint256 claimHash)
 {
     for (auto& pair : pairs)
         if (pair.first) // we're on the right because we were an odd index number
@@ -27,7 +27,7 @@ BOOST_AUTO_TEST_CASE(hash_includes_all_claims_rollback_test)
     CMutableTransaction tx1 = fixture.MakeClaim(fixture.GetCoinbase(), "test", "one", 1);
     fixture.IncrementBlocks(1);
 
-    uint256 currentRoot = fixture.getMerkleHash();
+    auto currentRoot = fixture.getMerkleHash();
     fixture.IncrementBlocks(1);
     BOOST_CHECK_EQUAL(currentRoot, fixture.getMerkleHash());
     fixture.IncrementBlocks(3);
@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE(hash_includes_all_claims_triple_test)
             }));
             BOOST_CHECK(proof.hasValue);
             BOOST_CHECK_EQUAL(proof.outPoint, claim.outPoint);
-            uint256 claimHash = getValueHash(claim.outPoint, proof.nHeightOfLastTakeover);
+            auto claimHash = getValueHash(claim.outPoint, proof.nHeightOfLastTakeover);
             ValidatePairs(fixture, proof.pairs, claimHash);
         }
     }
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(hash_includes_all_claims_branched_test)
             }));
             BOOST_CHECK(proof.hasValue);
             BOOST_CHECK_EQUAL(proof.outPoint, claim.outPoint);
-            uint256 claimHash = getValueHash(claim.outPoint, proof.nHeightOfLastTakeover);
+            auto claimHash = getValueHash(claim.outPoint, proof.nHeightOfLastTakeover);
             ValidatePairs(fixture, proof.pairs, claimHash);
         }
     }
@@ -150,15 +150,15 @@ BOOST_AUTO_TEST_CASE(hash_claims_children_fuzzer_test)
             }));
             BOOST_CHECK(proof.hasValue);
             BOOST_CHECK_EQUAL(proof.outPoint, claim.outPoint);
-            uint256 claimHash = getValueHash(claim.outPoint, proof.nHeightOfLastTakeover);
+            auto claimHash = getValueHash(claim.outPoint, proof.nHeightOfLastTakeover);
             ValidatePairs(fixture, proof.pairs, claimHash);
         }
     }
 }
 
-bool verify_proof(const CClaimTrieProof proof, uint256 rootHash, const std::string& name)
+bool verify_proof(const CClaimTrieProof proof, CUint256 rootHash, const std::string& name)
 {
-    uint256 previousComputedHash;
+    CUint256 previousComputedHash;
     std::string computedReverseName;
     bool verifiedValue = false;
 
@@ -167,7 +167,7 @@ bool verify_proof(const CClaimTrieProof proof, uint256 rootHash, const std::stri
         std::vector<unsigned char> vchToHash;
         for (auto itChildren = itNodes->children.begin(); itChildren != itNodes->children.end(); ++itChildren) {
             vchToHash.push_back(itChildren->first);
-            uint256 childHash;
+            CUint256 childHash;
             if (itChildren->second.IsNull()) {
                 if (previousComputedHash.IsNull()) {
                     return false;
@@ -187,7 +187,7 @@ bool verify_proof(const CClaimTrieProof proof, uint256 rootHash, const std::stri
             return false;
         }
         if (itNodes->hasValue) {
-            uint256 valHash;
+            CUint256 valHash;
             if (itNodes->valHash.IsNull()) {
                 if (itNodes != proof.nodes.rbegin()) {
                     return false;
@@ -210,7 +210,7 @@ bool verify_proof(const CClaimTrieProof proof, uint256 rootHash, const std::stri
         std::vector<unsigned char> vchHash(hasher.OUTPUT_SIZE);
         hasher.Write(vchToHash.data(), vchToHash.size());
         hasher.Finalize(&(vchHash[0]));
-        uint256 calculatedHash(vchHash);
+        CUint256 calculatedHash(vchHash);
         previousComputedHash = calculatedHash;
     }
     if (previousComputedHash != rootHash) {
@@ -349,8 +349,8 @@ BOOST_AUTO_TEST_CASE(value_proof_test)
 
 // Check that blocks with bogus calimtrie hash is rejected
 BOOST_AUTO_TEST_CASE(bogus_claimtrie_hash_test)
-    {
-            ClaimTrieChainFixture fixture;
+{
+    ClaimTrieChainFixture fixture;
     std::string sName("test");
     std::string sValue1("test");
 

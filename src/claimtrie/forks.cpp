@@ -1,8 +1,7 @@
 
-#include <consensus/merkle.h>
-#include <chainparams.h>
-#include <claimtrie.h>
-#include <hash.h>
+#include <claimtrie/forks.h>
+#include <claimtrie/hash.h>
+#include <claimtrie/trie.h>
 
 #include <boost/locale.hpp>
 #include <boost/locale/conversion.hpp>
@@ -10,26 +9,22 @@
 #include <boost/scope_exit.hpp>
 #include <boost/scoped_ptr.hpp>
 
-CClaimTrieCacheExpirationFork::CClaimTrieCacheExpirationFork(CClaimTrie* base)
-    : CClaimTrieCacheBase(base)
+CClaimTrieCacheExpirationFork::CClaimTrieCacheExpirationFork(CClaimTrie* base) : CClaimTrieCacheBase(base)
 {
-    setExpirationTime(Params().GetConsensus().GetExpirationTime(nNextHeight));
-}
-
-void CClaimTrieCacheExpirationFork::setExpirationTime(int time)
-{
-    nExpirationTime = time;
+    expirationHeight = nNextHeight;
 }
 
 int CClaimTrieCacheExpirationFork::expirationTime() const
 {
-    return nExpirationTime;
+    if (expirationHeight < base->nExtendedClaimExpirationForkHeight)
+        return CClaimTrieCacheBase::expirationTime();
+    return base->nExtendedClaimExpirationTime;
 }
 
 bool CClaimTrieCacheExpirationFork::incrementBlock(insertUndoType& insertUndo, claimQueueRowType& expireUndo, insertUndoType& insertSupportUndo, supportQueueRowType& expireSupportUndo, std::vector<std::pair<std::string, int>>& takeoverHeightUndo)
 {
     if (CClaimTrieCacheBase::incrementBlock(insertUndo, expireUndo, insertSupportUndo, expireSupportUndo, takeoverHeightUndo)) {
-        setExpirationTime(Params().GetConsensus().GetExpirationTime(nNextHeight));
+        expirationHeight = nNextHeight;
         return true;
     }
     return false;
@@ -38,7 +33,7 @@ bool CClaimTrieCacheExpirationFork::incrementBlock(insertUndoType& insertUndo, c
 bool CClaimTrieCacheExpirationFork::decrementBlock(insertUndoType& insertUndo, claimQueueRowType& expireUndo, insertUndoType& insertSupportUndo, supportQueueRowType& expireSupportUndo)
 {
     if (CClaimTrieCacheBase::decrementBlock(insertUndo, expireUndo, insertSupportUndo, expireSupportUndo)) {
-        setExpirationTime(Params().GetConsensus().GetExpirationTime(nNextHeight));
+        expirationHeight = nNextHeight;
         return true;
     }
     return false;
@@ -47,7 +42,7 @@ bool CClaimTrieCacheExpirationFork::decrementBlock(insertUndoType& insertUndo, c
 void CClaimTrieCacheExpirationFork::initializeIncrement()
 {
     // we could do this in the constructor, but that would not allow for multiple increments in a row (as done in unit tests)
-    if (nNextHeight != Params().GetConsensus().nExtendedClaimExpirationForkHeight)
+    if (nNextHeight != base->nExtendedClaimExpirationForkHeight)
         return;
 
     forkForExpirationChange(true);
@@ -56,7 +51,7 @@ void CClaimTrieCacheExpirationFork::initializeIncrement()
 bool CClaimTrieCacheExpirationFork::finalizeDecrement(std::vector<std::pair<std::string, int>>& takeoverHeightUndo)
 {
     auto ret = CClaimTrieCacheBase::finalizeDecrement(takeoverHeightUndo);
-    if (ret && nNextHeight == Params().GetConsensus().nExtendedClaimExpirationForkHeight)
+    if (ret && nNextHeight == base->nExtendedClaimExpirationForkHeight)
        forkForExpirationChange(false);
     return ret;
 }
@@ -98,9 +93,14 @@ bool CClaimTrieCacheExpirationFork::forkForExpirationChange(bool increment)
     return true;
 }
 
+CClaimTrieCacheNormalizationFork::CClaimTrieCacheNormalizationFork(CClaimTrie* base)
+    : CClaimTrieCacheExpirationFork(base), overrideInsertNormalization(false), overrideRemoveNormalization(false)
+{
+}
+
 bool CClaimTrieCacheNormalizationFork::shouldNormalize() const
 {
-    return nNextHeight > Params().GetConsensus().nNormalizedNameForkHeight;
+    return nNextHeight > base->nNormalizedNameForkHeight;
 }
 
 std::string CClaimTrieCacheNormalizationFork::normalizeClaimName(const std::string& name, bool force) const
@@ -149,7 +149,7 @@ bool CClaimTrieCacheNormalizationFork::insertClaimIntoTrie(const std::string& na
     return CClaimTrieCacheExpirationFork::insertClaimIntoTrie(normalizeClaimName(name, overrideInsertNormalization), claim, fCheckTakeover);
 }
 
-bool CClaimTrieCacheNormalizationFork::removeClaimFromTrie(const std::string& name, const COutPoint& outPoint, CClaimValue& claim, bool fCheckTakeover)
+bool CClaimTrieCacheNormalizationFork::removeClaimFromTrie(const std::string& name, const CTxOutPoint& outPoint, CClaimValue& claim, bool fCheckTakeover)
 {
     return CClaimTrieCacheExpirationFork::removeClaimFromTrie(normalizeClaimName(name, overrideRemoveNormalization), outPoint, claim, fCheckTakeover);
 }
@@ -159,14 +159,14 @@ bool CClaimTrieCacheNormalizationFork::insertSupportIntoMap(const std::string& n
     return CClaimTrieCacheExpirationFork::insertSupportIntoMap(normalizeClaimName(name, overrideInsertNormalization), support, fCheckTakeover);
 }
 
-bool CClaimTrieCacheNormalizationFork::removeSupportFromMap(const std::string& name, const COutPoint& outPoint, CSupportValue& support, bool fCheckTakeover)
+bool CClaimTrieCacheNormalizationFork::removeSupportFromMap(const std::string& name, const CTxOutPoint& outPoint, CSupportValue& support, bool fCheckTakeover)
 {
     return CClaimTrieCacheExpirationFork::removeSupportFromMap(normalizeClaimName(name, overrideRemoveNormalization), outPoint, support, fCheckTakeover);
 }
 
 bool CClaimTrieCacheNormalizationFork::normalizeAllNamesInTrieIfNecessary(insertUndoType& insertUndo, claimQueueRowType& removeUndo, insertUndoType& insertSupportUndo, supportQueueRowType& expireSupportUndo, std::vector<std::pair<std::string, int>>& takeoverHeightUndo)
 {
-    if (nNextHeight != Params().GetConsensus().nNormalizedNameForkHeight)
+    if (nNextHeight != base->nNormalizedNameForkHeight)
         return false;
 
     // run the one-time upgrade of all names that need to change
@@ -244,42 +244,57 @@ CClaimSupportToName CClaimTrieCacheNormalizationFork::getClaimsForName(const std
     return CClaimTrieCacheExpirationFork::getClaimsForName(normalizeClaimName(name));
 }
 
-int CClaimTrieCacheNormalizationFork::getDelayForName(const std::string& name, const uint160& claimId) const
+int CClaimTrieCacheNormalizationFork::getDelayForName(const std::string& name, const CUint160& claimId) const
 {
     return CClaimTrieCacheExpirationFork::getDelayForName(normalizeClaimName(name), claimId);
 }
 
 std::string CClaimTrieCacheNormalizationFork::adjustNameForValidHeight(const std::string& name, int validHeight) const
 {
-    return normalizeClaimName(name, validHeight > Params().GetConsensus().nNormalizedNameForkHeight);
+    return normalizeClaimName(name, validHeight > base->nNormalizedNameForkHeight);
 }
 
 CClaimTrieCacheHashFork::CClaimTrieCacheHashFork(CClaimTrie* base) : CClaimTrieCacheNormalizationFork(base)
 {
 }
 
-static const uint256 leafHash = uint256S("0000000000000000000000000000000000000000000000000000000000000002");
-static const uint256 emptyHash = uint256S("0000000000000000000000000000000000000000000000000000000000000003");
+static const auto leafHash = CUint256S("0000000000000000000000000000000000000000000000000000000000000002");
+static const auto emptyHash = CUint256S("0000000000000000000000000000000000000000000000000000000000000003");
 
-std::vector<uint256> getClaimHashes(const CClaimTrieData& data)
+std::vector<CUint256> getClaimHashes(const CClaimTrieData& data)
 {
-    std::vector<uint256> hashes;
+    std::vector<CUint256> hashes;
     for (auto& claim : data.claims)
         hashes.push_back(getValueHash(claim.outPoint, data.nHeightOfLastTakeover));
     return hashes;
 }
 
+CUint256 ComputeMerkleRoot(std::vector<CUint256> hashes)
+{
+    while (hashes.size() > 1) {
+        if (hashes.size() & 1)
+            hashes.push_back(hashes.back());
+
+        for (std::size_t i = 0, j = 0; i < hashes.size(); i += 2)
+            hashes[j++] = Hash(hashes[i].begin(), hashes[i].end(),
+                               hashes[i+1].begin(), hashes[i+1].end());
+
+        hashes.resize(hashes.size() / 2);
+    }
+    return hashes.empty() ? CUint256{} : hashes[0];
+}
+
 template <typename T>
-using iCbType = std::function<uint256(T&)>;
+using iCbType = std::function<CUint256(T&)>;
 
 template <typename TIterator>
-uint256 recursiveBinaryTreeHash(TIterator& it, const iCbType<TIterator>& process)
+CUint256 recursiveBinaryTreeHash(TIterator& it, const iCbType<TIterator>& process)
 {
-    std::vector<uint256> childHashes;
+    std::vector<CUint256> childHashes;
     for (auto& child : it.children())
         childHashes.emplace_back(process(child));
 
-    std::vector<uint256> claimHashes;
+    std::vector<CUint256> claimHashes;
     if (!it->empty())
         claimHashes = getClaimHashes(it.data());
     else if (!it.hasChildren())
@@ -291,13 +306,13 @@ uint256 recursiveBinaryTreeHash(TIterator& it, const iCbType<TIterator>& process
     return Hash(left.begin(), left.end(), right.begin(), right.end());
 }
 
-uint256 CClaimTrieCacheHashFork::recursiveComputeMerkleHash(CClaimTrie::iterator& it)
+CUint256 CClaimTrieCacheHashFork::recursiveComputeMerkleHash(CClaimTrie::iterator& it)
 {
-    if (nNextHeight < Params().GetConsensus().nAllClaimsInMerkleForkHeight)
+    if (nNextHeight < base->nAllClaimsInMerkleForkHeight)
         return CClaimTrieCacheNormalizationFork::recursiveComputeMerkleHash(it);
 
     using iterator = CClaimTrie::iterator;
-    iCbType<iterator> process = [&process](iterator& it) -> uint256 {
+    iCbType<iterator> process = [&process](iterator& it) -> CUint256 {
         if (it->hash.IsNull())
             it->hash = recursiveBinaryTreeHash(it, process);
         assert(!it->hash.IsNull());
@@ -308,12 +323,12 @@ uint256 CClaimTrieCacheHashFork::recursiveComputeMerkleHash(CClaimTrie::iterator
 
 bool CClaimTrieCacheHashFork::recursiveCheckConsistency(CClaimTrie::const_iterator& it, std::string& failed) const
 {
-    if (nNextHeight < Params().GetConsensus().nAllClaimsInMerkleForkHeight)
+    if (nNextHeight < base->nAllClaimsInMerkleForkHeight)
         return CClaimTrieCacheNormalizationFork::recursiveCheckConsistency(it, failed);
 
     struct CRecursiveBreak {};
     using iterator = CClaimTrie::const_iterator;
-    iCbType<iterator> process = [&failed, &process](iterator& it) -> uint256 {
+    iCbType<iterator> process = [&failed, &process](iterator& it) -> CUint256 {
         if (it->hash.IsNull() || it->hash != recursiveBinaryTreeHash(it, process)) {
             failed = it.key();
             throw CRecursiveBreak();
@@ -329,14 +344,14 @@ bool CClaimTrieCacheHashFork::recursiveCheckConsistency(CClaimTrie::const_iterat
     return true;
 }
 
-std::vector<uint256> ComputeMerklePath(const std::vector<uint256>& hashes, uint32_t idx)
+std::vector<CUint256> ComputeMerklePath(const std::vector<CUint256>& hashes, uint32_t idx)
 {
     uint32_t count = 0;
     int matchlevel = -1;
     bool matchh = false;
-    uint256 inner[32], h;
+    CUint256 inner[32], h;
     const uint32_t one = 1;
-    std::vector<uint256> res;
+    std::vector<CUint256> res;
 
     const auto iterateInner = [&](int& level) {
         for (; !(count & (one << level)); level++) {
@@ -391,10 +406,10 @@ bool CClaimTrieCacheHashFork::getProofForName(const std::string& name, CClaimTri
 
 bool CClaimTrieCacheHashFork::getProofForName(const std::string& name, CClaimTrieProof& proof, const std::function<bool(const CClaimValue&)>& comp)
 {
-    if (nNextHeight < Params().GetConsensus().nAllClaimsInMerkleForkHeight)
+    if (nNextHeight < base->nAllClaimsInMerkleForkHeight)
         return CClaimTrieCacheNormalizationFork::getProofForName(name, proof);
 
-    auto fillPairs = [&proof](const std::vector<uint256>& hashes, uint32_t idx) {
+    auto fillPairs = [&proof](const std::vector<CUint256>& hashes, uint32_t idx) {
         auto partials = ComputeMerklePath(hashes, idx);
         for (int i = partials.size() - 1; i >= 0; --i)
             proof.pairs.emplace_back((idx >> i) & 1, partials[i]);
@@ -405,7 +420,7 @@ bool CClaimTrieCacheHashFork::getProofForName(const std::string& name, CClaimTri
     getMerkleHash();
     proof = CClaimTrieProof();
     for (auto& it : static_cast<const CClaimTrie&>(nodesToAddOrUpdate).nodes(name)) {
-        std::vector<uint256> childHashes;
+        std::vector<CUint256> childHashes;
         uint32_t nextCurrentIdx = 0;
         for (auto& child : it.children()) {
             if (name.find(child.key()) == 0)
@@ -413,7 +428,7 @@ bool CClaimTrieCacheHashFork::getProofForName(const std::string& name, CClaimTri
             childHashes.push_back(child->hash);
         }
 
-        std::vector<uint256> claimHashes;
+        std::vector<CUint256> claimHashes;
         if (!it->empty())
             claimHashes = getClaimHashes(it.data());
 
@@ -459,7 +474,7 @@ void CClaimTrieCacheHashFork::initializeIncrement()
 {
     CClaimTrieCacheNormalizationFork::initializeIncrement();
     // we could do this in the constructor, but that would not allow for multiple increments in a row (as done in unit tests)
-    if (nNextHeight != Params().GetConsensus().nAllClaimsInMerkleForkHeight - 1)
+    if (nNextHeight != base->nAllClaimsInMerkleForkHeight - 1)
         return;
 
     // if we are forking, we load the entire base trie into the cache trie
@@ -470,12 +485,12 @@ void CClaimTrieCacheHashFork::initializeIncrement()
 bool CClaimTrieCacheHashFork::finalizeDecrement(std::vector<std::pair<std::string, int>>& takeoverHeightUndo)
 {
     auto ret = CClaimTrieCacheNormalizationFork::finalizeDecrement(takeoverHeightUndo);
-    if (ret && nNextHeight == Params().GetConsensus().nAllClaimsInMerkleForkHeight - 1)
+    if (ret && nNextHeight == base->nAllClaimsInMerkleForkHeight - 1)
         copyAllBaseToCache();
     return ret;
 }
 
 bool CClaimTrieCacheHashFork::allowSupportMetadata() const
 {
-    return nNextHeight >= Params().GetConsensus().nAllClaimsInMerkleForkHeight;
+    return nNextHeight >= base->nAllClaimsInMerkleForkHeight;
 }

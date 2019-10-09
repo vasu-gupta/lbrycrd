@@ -29,6 +29,7 @@ LIBBITCOIN_COMMON=libbitcoin_common.a
 LIBBITCOIN_CONSENSUS=libbitcoin_consensus.a
 LIBBITCOIN_CLI=libbitcoin_cli.a
 LIBBITCOIN_UTIL=libbitcoin_util.a
+LIBCLAIMTRIE=claimtrie/libclaimtrie.a
 LIBBITCOIN_CRYPTO_BASE=crypto/libbitcoin_crypto_base.a
 LIBBITCOINQT=qt/libbitcoinqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
@@ -63,6 +64,7 @@ $(LIBSECP256K1): $(wildcard secp256k1/src/*.h) $(wildcard secp256k1/src/*.c) $(w
 # Make is not made aware of per-object dependencies to avoid limiting building parallelization
 # But to build the less dependent modules first, we manually select their order here:
 EXTRA_LIBRARIES += \
+  $(LIBCLAIMTRIE) \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_COMMON) \
@@ -103,7 +105,7 @@ BITCOIN_CORE_H = \
   checkpoints.h \
   checkqueue.h \
   claimscriptop.h \
-  claimtrie.h \
+  claimtrie_serial.h \
   clientversion.h \
   coins.h \
   compat.h \
@@ -149,7 +151,6 @@ BITCOIN_CORE_H = \
   policy/policy.h \
   policy/rbf.h \
   pow.h \
-  prefixtrie.h \
   protocol.h \
   random.h \
   reverse_iterator.h \
@@ -230,8 +231,6 @@ libbitcoin_server_a_SOURCES = \
   chain.cpp \
   checkpoints.cpp \
   claimscriptop.cpp \
-  claimtrie.cpp \
-  claimtrieforks.cpp \
   consensus/tx_verify.cpp \
   httprpc.cpp \
   httpserver.cpp \
@@ -251,7 +250,6 @@ libbitcoin_server_a_SOURCES = \
   policy/policy.cpp \
   policy/rbf.cpp \
   pow.cpp \
-  prefixtrie.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
   rpc/claimtrie.cpp \
@@ -413,6 +411,19 @@ libbitcoin_common_a_SOURCES = \
   warnings.cpp \
   $(BITCOIN_CORE_H)
 
+# claimtrie: shared between all executables.
+claimtrie_libclaimtrie_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+claimtrie_libclaimtrie_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+claimtrie_libclaimtrie_a_SOURCES = \
+  claimtrie/data.cpp \
+  claimtrie/forks.cpp \
+  claimtrie/hash.cpp \
+  claimtrie/log.cpp \
+  claimtrie/prefixtrie.cpp \
+  claimtrie/trie.cpp \
+  claimtrie/txoutpoint.cpp \
+  claimtrie/uints.cpp
+
 # util: shared between all executables.
 # This library *must* be included to make sure that the glibc
 # backward-compatibility objects and their sanity checks are linked.
@@ -480,7 +491,7 @@ lbrycrdd_LDADD = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-lbrycrdd_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(CRYPTO_LIBS) $(ICU_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
+lbrycrdd_LDADD += $(BOOST_LIBS) $(LIBCLAIMTRIE) $(BOOST_LOCALE_LIB) $(BDB_LIBS) $(CRYPTO_LIBS) $(ICU_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
 
 # lbrycrd-cli binary #
 lbrycrd_cli_SOURCES = bitcoin-cli.cpp
@@ -498,7 +509,7 @@ lbrycrd_cli_LDADD = \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO)
 
-lbrycrd_cli_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS) $(ICU_LIBS) $(EVENT_LIBS)
+lbrycrd_cli_LDADD += $(BOOST_LIBS) $(LIBCLAIMTRIE) $(BOOST_LOCALE_LIB) $(CRYPTO_LIBS) $(ICU_LIBS) $(EVENT_LIBS)
 #
 
 # bitcoin-tx binary #
@@ -519,7 +530,7 @@ lbrycrd_tx_LDADD = \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBSECP256K1)
 
-lbrycrd_tx_LDADD += $(BOOST_LIBS) $(ICU_LIBS) $(CRYPTO_LIBS)
+lbrycrd_tx_LDADD += $(BOOST_LIBS) $(LIBCLAIMTRIE) $(BOOST_LOCALE_LIB) $(ICU_LIBS) $(CRYPTO_LIBS)
 #
 
 # bitcoinconsensus library #

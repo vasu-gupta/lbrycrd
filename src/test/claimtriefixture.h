@@ -6,7 +6,7 @@
 #define _CLAIMTRIEFIXTURE_H_
 
 #include <chainparams.h>
-#include <claimtrie.h>
+#include <claimtrie/forks.h>
 #include <coins.h>
 #include <consensus/merkle.h>
 #include <consensus/validation.h>
@@ -29,7 +29,7 @@
 extern ::CChainState g_chainstate;
 extern ::ArgsManager gArgs;
 extern std::vector<std::string> random_strings(std::size_t count);
-extern bool getClaimById(const uint160&, std::string&, CClaimValue*);
+extern bool getClaimById(const CUint160&, std::string&, CClaimValue*);
 
 CMutableTransaction BuildTransaction(const uint256& prevhash);
 CMutableTransaction BuildTransaction(const CTransaction& prev, uint32_t prevout=0, unsigned int numOutputs=1, int locktime=0);

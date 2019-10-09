@@ -1,10 +1,9 @@
 
-#include <claimtrie.h>
-#include <fs.h>
-#include <lbry.h>
+#include <claimtrie/prefixtrie.h>
+#include <claimtrie/trie.h>
+
 #include <limits>
 #include <memory>
-#include <prefixtrie.h>
 
 #include <boost/interprocess/allocators/private_node_allocator.hpp>
 #include <boost/interprocess/indexes/null_index.hpp>
@@ -21,27 +20,34 @@ typedef bip::basic_managed_mapped_file <
 template <typename T>
 using node_allocator = bip::private_node_allocator<T, managed_mapped_file::segment_manager>;
 
+CMemFileConf& CMemFileConf::global()
+{
+    static CMemFileConf conf;
+    return conf;
+}
+
 static managed_mapped_file::segment_manager* segmentManager()
 {
     struct CSharedMemoryFile
     {
-        CSharedMemoryFile() : file(GetDataDir() / "shared.mem")
+        CSharedMemoryFile()
         {
+            auto& file = CMemFileConf::global().fileName;
+            assert(!file.empty());
             fs::remove(file);
-            auto size = (uint64_t)g_memfileSize * 1024ULL * 1024ULL * 1024ULL;
+            auto size = uint64_t(CMemFileConf::global().fileSize) * 1024ULL * 1024ULL * 1024ULL;
             // using string() to remove w_char filename encoding on Windows
             menaged_file.reset(new managed_mapped_file(bip::create_only, file.string().c_str(), size));
         }
         ~CSharedMemoryFile()
         {
             menaged_file.reset();
-            fs::remove(file);
+            fs::remove(CMemFileConf::global().fileName);
         }
         managed_mapped_file::segment_manager* segmentManager()
         {
             return menaged_file->get_segment_manager();
         }
-        const fs::path file;
         std::unique_ptr<managed_mapped_file> menaged_file;
     };
     static CSharedMemoryFile shem;
@@ -64,13 +70,11 @@ static std::shared_ptr<T> nodeAllocate(Args&&... args)
 template <typename T, class... Args>
 static std::shared_ptr<T> allocateShared(Args&&... args)
 {
-    static auto allocate = g_memfileSize ? nodeAllocate<T, Args...> : std::make_shared<T, Args...>;
+    static auto allocate = CMemFileConf::global().fileSize ? nodeAllocate<T, Args...> : std::make_shared<T, Args...>;
     try {
         return allocate(std::forward<Args>(args)...);
-    }
-    catch (const bip::bad_alloc&) {
+    } catch (const bip::bad_alloc&) {
         allocate = std::make_shared<T, Args...>; // in case we fill up the memfile
-        LogPrint(BCLog::BENCH, "WARNING: The memfile is full; reverting to the RAM allocator for %s.\n", typeid(T).name());
         return allocate(std::forward<Args>(args)...);
     }
 }

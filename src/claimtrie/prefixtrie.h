@@ -1,5 +1,5 @@
-#ifndef BITCOIN_PREFIXTRIE_H
-#define BITCOIN_PREFIXTRIE_H
+#ifndef CLAIMTRIE_PREFIXTRIE_H
+#define CLAIMTRIE_PREFIXTRIE_H
 
 #include <algorithm>
 #include <functional>
@@ -10,8 +10,22 @@
 #include <vector>
 
 #include <boost/container/flat_map.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 
 namespace bc = boost::container;
+namespace fs = boost::filesystem;
+
+class CMemFileConf
+{
+public:
+    fs::path fileName;
+    uint32_t fileSize = 0;
+
+    static CMemFileConf& global();
+private:
+    CMemFileConf() = default;
+};
 
 template <typename TKey, typename TData>
 class CPrefixTrie
@@ -60,7 +74,7 @@ class CPrefixTrie
     public:
         // Iterator traits
         using value_type = TPair;
-        using const_pointer = const TData* const;
+        using const_pointer = const TData*;
         using const_reference = ConstTPair;
         using data_reference = typename std::conditional<IsConst, const TData&, TData&>::type;
         using pointer = typename std::conditional<IsConst, const TData* const, TData* const>::type;
@@ -222,4 +236,4 @@ static std::size_t match(const TKey& a, const TKey& b)
     return count;
 }
 
-#endif // BITCOIN_PREFIXTRIE_H
+#endif // CLAIMTRIE_PREFIXTRIE_H

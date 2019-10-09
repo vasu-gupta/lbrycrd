@@ -14,7 +14,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <checkpoints.h>
-#include <claimtrie.h>
+#include <claimtrie/forks.h>
 #include <compat/sanity.h>
 #include <consensus/validation.h>
 #include <fs.h>
@@ -1437,7 +1437,11 @@ bool AppInitMain()
     LogPrintf("* Using %.1fMiB for chain state database\n", nCoinDBCache * (1.0 / 1024 / 1024));
     LogPrintf("* Using %.1fMiB for in-memory UTXO set (plus up to %.1fMiB of unused mempool space)\n", nCoinCacheUsage * (1.0 / 1024 / 1024), nMempoolSizeMax * (1.0 / 1024 / 1024));
 
-    g_memfileSize = gArgs.GetArg("-memfile", 0u);
+    if (gArgs.IsArgSet("-memfile")) {
+        auto& mf = CMemFileConf::global();
+        mf.fileSize = gArgs.GetArg("-memfile", 0u);
+        mf.fileName = GetDataDir() / "shared.mem";
+    }
 
     bool fLoaded = false;
     while (!fLoaded && !ShutdownRequested()) {
@@ -1463,7 +1467,16 @@ bool AppInitMain()
                 int64_t trieCacheMB = gArgs.GetArg("-claimtriecache", nDefaultDbCache);
                 trieCacheMB = std::min(trieCacheMB, nMaxDbCache);
                 trieCacheMB = std::max(trieCacheMB, nMinDbCache);
-                pclaimTrie = new CClaimTrie(false, fReindex || fReindexChainState, 32, trieCacheMB);
+                auto& consensus = chainparams.GetConsensus();
+                if (g_logger->Enabled() && LogAcceptCategory(BCLog::CLAIMS))
+                    CLogPrint::global().setLogger(g_logger);
+                pclaimTrie = new CClaimTrie(false, fReindex || fReindexChainState,
+                                            consensus.nNormalizedNameForkHeight,
+                                            consensus.nOriginalClaimExpirationTime,
+                                            consensus.nExtendedClaimExpirationTime,
+                                            consensus.nExtendedClaimExpirationForkHeight,
+                                            consensus.nAllClaimsInMerkleForkHeight,
+                                            32, trieCacheMB);
 
                 if (fReset) {
                     pblocktree->WriteReindexing(true);
@@ -1537,8 +1550,10 @@ bool AppInitMain()
                     assert(chainActive.Tip() != nullptr);
                 }
 
+                auto tip = chainActive.Tip();
+                assert(tip);
                 CClaimTrieCache trieCache(pclaimTrie);
-                if (!trieCache.ReadFromDisk(chainActive.Tip()))
+                if (!trieCache.ReadFromDisk(tip->nHeight, tip->hashClaimTrie))
                 {
                     strLoadError = _("Error loading the claim trie from disk");
                     break;
