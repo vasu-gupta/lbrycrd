@@ -1,10 +1,10 @@
 #ifndef CLAIMTRIE_TRIE_H
 #define CLAIMTRIE_TRIE_H
 
-#include <claimtrie/data.h>
-#include <claimtrie/prefixtrie.h>
-#include <claimtrie/txoutpoint.h>
-#include <claimtrie/uints.h>
+#include <data.h>
+#include <prefixtrie.h>
+#include <txoutpoint.h>
+#include <uints.h>
 #include <dbwrapper.h>
 
 #include <functional>
@@ -80,6 +80,7 @@ public:
     CClaimTrie& operator=(const CClaimTrie&) = delete;
 
     bool SyncToDisk();
+    bool ReadFromDisk(int nHeight, const CUint256& rootHash);
 
     friend class CClaimTrieCacheBase;
     friend struct ClaimTrieChainFixture;
@@ -217,7 +218,6 @@ public:
     bool flush();
     bool empty() const;
     bool checkConsistency() const;
-    bool ReadFromDisk(int nHeight, const CUint256& rootHash);
 
     bool haveClaim(const std::string& name, const CTxOutPoint& outPoint) const;
     bool haveClaimInQueue(const std::string& name, const CTxOutPoint& outPoint, int& nValidAtHeight) const;
@@ -299,10 +299,6 @@ protected:
                      // one greater than the height of the chain's tip
 
 private:
-    CUint256 hashBlock;
-
-    std::unordered_map<std::string, std::pair<CUint160, int>> takeoverCache;
-
     claimQueueType claimQueueCache; // claims not active yet: to be written to disk on flush
     queueNameType claimQueueNameCache;
     supportQueueType supportQueueCache; // supports not active yet: to be written to disk on flush
@@ -310,6 +306,7 @@ private:
     claimIndexElementListType claimsToAddToByIdIndex; // written to index on flush
     claimIndexClaimListType claimsToDeleteFromByIdIndex;
 
+    std::unordered_map<std::string, std::pair<CUint160, int>> takeoverCache;
     std::unordered_map<std::string, supportEntryType> supportCache;  // to be added/updated to base (and disk) on flush
     std::unordered_set<std::string> nodesToDelete; // to be removed from base (and disk) on flush
 

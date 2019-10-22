@@ -1,7 +1,8 @@
 
-#include <claimtrie/hash.h>
-#include <claimtrie/log.h>
-#include <claimtrie/trie.h>
+#include <forks.h>
+#include <hashes.h>
+#include <log.h>
+#include <trie.h>
 
 #include <algorithm>
 #include <memory>
@@ -93,6 +94,71 @@ CClaimTrie::CClaimTrie(bool fMemory, bool fWipe,
 bool CClaimTrie::SyncToDisk()
 {
     return db && db->Sync();
+}
+
+bool CClaimTrie::ReadFromDisk(int nHeight, const CUint256& rootHash)
+{
+    logPrint << "Loading the claim trie from disk..." << Clog::endl;
+
+    nNextHeight = nHeight + 1;
+
+    if (db->Exists(std::make_pair(TRIE_NODE_CHILDREN, std::string()))) {
+        logPrint << "The claim trie database contains deprecated data and will need to be rebuilt." << Clog::endl;
+        return false;
+    }
+
+    clear();
+    boost::scoped_ptr<CDBIterator> pcursor(db->NewIterator());
+
+    for (pcursor->SeekToFirst(); pcursor->Valid(); pcursor->Next()) {
+        std::pair<uint8_t, std::string> key;
+        if (!pcursor->GetKey(key) || key.first != TRIE_NODE)
+            continue;
+
+        CClaimTrieData data;
+        if (pcursor->GetValue(data)) {
+            if (data.empty()) {
+                // we have a situation where our old trie had many empty nodes
+                // we don't want to automatically throw those all into our prefix trie
+                // we'll run a second pass to clean them up
+                continue;
+            }
+
+            // nEffectiveAmount isn't serialized but it needs to be initialized (as done in reorderClaims):
+            supportEntryType supports;
+            if (db->Read(std::make_pair(SUPPORT, key.second), supports))
+                data.reorderClaims(supports);
+            insert(key.second, std::move(data));
+        } else {
+            return false;
+        }
+    }
+
+    for (pcursor->SeekToFirst(); pcursor->Valid(); pcursor->Next()) {
+        std::pair<uint8_t, std::string> key;
+        if (!pcursor->GetKey(key) || key.first != TRIE_NODE)
+            continue;
+        auto hit = find(key.second);
+        if (hit) {
+            CClaimTrieData data;
+            if (pcursor->GetValue(data))
+                hit->hash = data.hash;
+        } else
+            db->Erase(key); // this uses a lot of memory and it's 1-time upgrade from 12.4 so we aren't going to batch it
+    }
+
+    CClaimTrieCache trieCache(this);
+    logPrint << "Checking claim trie consistency... " << Clog::endl;
+    if (trieCache.checkConsistency()) {
+        logPrint << "consistent" << Clog::endl;
+        if (rootHash != trieCache.getMerkleHash()) {
+            logPrint << "Merkle hash does not match root hash" << Clog::endl;
+            return false;
+        }
+        return true;
+    }
+    logPrint << "inconsistent!" << Clog::endl;
+    return false;
 }
 
 template <typename T>
@@ -532,72 +598,6 @@ bool CClaimTrieCacheBase::flush()
 
     clear();
     return ret;
-}
-
-bool CClaimTrieCacheBase::ReadFromDisk(int nHeight, const CUint256& rootHash)
-{
-    logPrint << "Loading the claim trie from disk..." << Clog::endl;
-
-    base->nNextHeight = nNextHeight = nHeight + 1;
-
-    if (base->db->Exists(std::make_pair(TRIE_NODE_CHILDREN, std::string()))) {
-        logPrint << "The claim trie database contains deprecated data and will need to be rebuilt." << Clog::endl;
-        return false;
-    }
-
-    clear();
-    base->clear();
-    boost::scoped_ptr<CDBIterator> pcursor(base->db->NewIterator());
-
-    for (pcursor->SeekToFirst(); pcursor->Valid(); pcursor->Next()) {
-        std::pair<uint8_t, std::string> key;
-        if (!pcursor->GetKey(key) || key.first != TRIE_NODE)
-            continue;
-
-        CClaimTrieData data;
-        if (pcursor->GetValue(data)) {
-            if (data.empty()) {
-                // we have a situation where our old trie had many empty nodes
-                // we don't want to automatically throw those all into our prefix trie
-                // we'll run a second pass to clean them up
-                continue;
-            }
-
-            // nEffectiveAmount isn't serialized but it needs to be initialized (as done in reorderClaims):
-            auto supports = getSupportsForName(key.second);
-            data.reorderClaims(supports);
-            base->insert(key.second, std::move(data));
-        } else {
-            return false;
-        }
-    }
-
-    for (pcursor->SeekToFirst(); pcursor->Valid(); pcursor->Next()) {
-        std::pair<uint8_t, std::string> key;
-        if (!pcursor->GetKey(key) || key.first != TRIE_NODE)
-            continue;
-        auto hit = base->find(key.second);
-        if (hit) {
-            CClaimTrieData data;
-            if (pcursor->GetValue(data))
-                hit->hash = data.hash;
-        }
-        else {
-            base->db->Erase(key); // this uses a lot of memory and it's 1-time upgrade from 12.4 so we aren't going to batch it
-        }
-    }
-
-    logPrint << "Checking claim trie consistency... " << Clog::endl;
-    if (checkConsistency()) {
-        logPrint << "consistent" << Clog::endl;
-        if (rootHash != getMerkleHash()) {
-            logPrint << "Merkle hash does not match root hash" << Clog::endl;
-            return false;
-        }
-        return true;
-    }
-    logPrint << "inconsistent!" << Clog::endl;
-    return false;
 }
 
 CClaimTrieCacheBase::CClaimTrieCacheBase(CClaimTrie* base) : base(base)

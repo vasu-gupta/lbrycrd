@@ -2,8 +2,8 @@
 #ifndef CLAIMTRIE_DATA_H
 #define CLAIMTRIE_DATA_H
 
-#include <claimtrie/txoutpoint.h>
-#include <claimtrie/uints.h>
+#include <txoutpoint.h>
+#include <uints.h>
 
 #include <string>
 #include <vector>

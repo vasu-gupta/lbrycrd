@@ -1,6 +1,6 @@
 
-#include <claimtrie/prefixtrie.h>
-#include <claimtrie/trie.h>
+#include <prefixtrie.h>
+#include <trie.h>
 
 #include <limits>
 #include <memory>

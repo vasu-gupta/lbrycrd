@@ -1552,8 +1552,7 @@ bool AppInitMain()
 
                 auto tip = chainActive.Tip();
                 assert(tip);
-                CClaimTrieCache trieCache(pclaimTrie);
-                if (!trieCache.ReadFromDisk(tip->nHeight, tip->hashClaimTrie))
+                if (!pclaimTrie->ReadFromDisk(tip->nHeight, tip->hashClaimTrie))
                 {
                     strLoadError = _("Error loading the claim trie from disk");
                     break;
