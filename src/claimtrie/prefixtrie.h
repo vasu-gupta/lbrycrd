@@ -14,12 +14,11 @@
 #include <boost/filesystem/fstream.hpp>
 
 namespace bc = boost::container;
-namespace fs = boost::filesystem;
 
 class CMemFileConf
 {
 public:
-    fs::path fileName;
+    std::string fileName;
     uint32_t fileSize = 0;
 
     static CMemFileConf& global();

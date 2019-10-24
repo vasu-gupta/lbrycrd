@@ -67,8 +67,8 @@ public:
     CClaimTrie() = default;
     CClaimTrie(CClaimTrie&&) = delete;
     CClaimTrie(const CClaimTrie&) = delete;
-    CClaimTrie(bool fMemory,
-               bool fWipe,
+    CClaimTrie(bool fMemory, bool fWipe,
+               const std::string& dataDir,
                int nNormalizedNameForkHeight,
                int64_t nOriginalClaimExpirationTime,
                int64_t nExtendedClaimExpirationTime,

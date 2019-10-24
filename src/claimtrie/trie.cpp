@@ -75,6 +75,7 @@ CClaimTrieProofNode::CClaimTrieProofNode(std::vector<std::pair<unsigned char, CU
 }
 
 CClaimTrie::CClaimTrie(bool fMemory, bool fWipe,
+                       const std::string& dataDir,
                        int nNormalizedNameForkHeight,
                        int64_t nOriginalClaimExpirationTime,
                        int64_t nExtendedClaimExpirationTime,
@@ -88,7 +89,7 @@ CClaimTrie::CClaimTrie(bool fMemory, bool fWipe,
                        nExtendedClaimExpirationForkHeight(nExtendedClaimExpirationForkHeight),
                        nAllClaimsInMerkleForkHeight(nAllClaimsInMerkleForkHeight)
 {
-    db.reset(new CDBWrapper(GetDataDir() / "claimtrie", cacheMB * 1024ULL * 1024ULL, fMemory, fWipe, false));
+    db.reset(new CDBWrapper(dataDir, cacheMB * 1024ULL * 1024ULL, fMemory, fWipe, false));
 }
 
 bool CClaimTrie::SyncToDisk()

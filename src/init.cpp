@@ -1440,7 +1440,7 @@ bool AppInitMain()
     if (gArgs.IsArgSet("-memfile")) {
         auto& mf = CMemFileConf::global();
         mf.fileSize = gArgs.GetArg("-memfile", 0u);
-        mf.fileName = GetDataDir() / "shared.mem";
+        mf.fileName = (GetDataDir() / "shared.mem").string();
     }
 
     bool fLoaded = false;
@@ -1471,6 +1471,7 @@ bool AppInitMain()
                 if (g_logger->Enabled() && LogAcceptCategory(BCLog::CLAIMS))
                     CLogPrint::global().setLogger(g_logger);
                 pclaimTrie = new CClaimTrie(false, fReindex || fReindexChainState,
+                                            (GetDataDir() / "claimtrie").string(),
                                             consensus.nNormalizedNameForkHeight,
                                             consensus.nOriginalClaimExpirationTime,
                                             consensus.nExtendedClaimExpirationTime,

@@ -9,6 +9,7 @@
 #include <boost/interprocess/indexes/null_index.hpp>
 #include <boost/interprocess/managed_mapped_file.hpp>
 
+namespace fs = boost::filesystem;
 namespace bip = boost::interprocess;
 
 typedef bip::basic_managed_mapped_file <
@@ -36,8 +37,7 @@ static managed_mapped_file::segment_manager* segmentManager()
             assert(!file.empty());
             fs::remove(file);
             auto size = uint64_t(CMemFileConf::global().fileSize) * 1024ULL * 1024ULL * 1024ULL;
-            // using string() to remove w_char filename encoding on Windows
-            menaged_file.reset(new managed_mapped_file(bip::create_only, file.string().c_str(), size));
+            menaged_file.reset(new managed_mapped_file(bip::create_only, file.c_str(), size));
         }
         ~CSharedMemoryFile()
         {
