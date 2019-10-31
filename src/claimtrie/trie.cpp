@@ -103,6 +103,7 @@ bool CClaimTrie::ReadFromDisk(int nHeight, const CUint256& rootHash)
 
     nNextHeight = nHeight + 1;
 
+    assert(db);
     if (db->Exists(std::make_pair(TRIE_NODE_CHILDREN, std::string()))) {
         logPrint << "The claim trie database contains deprecated data and will need to be rebuilt." << Clog::endl;
         return false;
@@ -160,6 +161,44 @@ bool CClaimTrie::ReadFromDisk(int nHeight, const CUint256& rootHash)
     }
     logPrint << "inconsistent!" << Clog::endl;
     return false;
+}
+
+// name can be setted explicitly
+bool CClaimTrie::getClaimById(const std::string& claimId, std::string& name, CClaimValue* claim)
+{
+    if (claimId.empty())
+        return false;
+
+    assert(db);
+    CClaimIndexElement element;
+    if (claimId.size() == CUint160::size() * 2) {
+        if (!db->Read(std::make_pair(CLAIM_BY_ID, CUint160S(claimId)), element))
+            return false;
+    } else {
+        std::unique_ptr<CDBIterator> pcursor(db->NewIterator());
+
+        for (pcursor->SeekToFirst(); pcursor->Valid(); pcursor->Next()) {
+            std::pair<uint8_t, CUint160> key;
+            if (!pcursor->GetKey(key) || key.first != CLAIM_BY_ID)
+                continue;
+
+            if (key.second.GetHex().find(claimId) != 0)
+                continue;
+
+            if (pcursor->GetValue(element)) {
+                if (!name.empty() && name != element.name)
+                    continue;
+                break;
+            }
+        }
+        if (!pcursor->Valid())
+            return false;
+    }
+
+    name = element.name;
+    if (claim)
+        *claim = element.claim;
+    return true;
 }
 
 template <typename T>

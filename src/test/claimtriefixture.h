@@ -29,7 +29,8 @@
 extern ::CChainState g_chainstate;
 extern ::ArgsManager gArgs;
 extern std::vector<std::string> random_strings(std::size_t count);
-extern bool getClaimById(const CUint160&, std::string&, CClaimValue*);
+
+bool getClaimById(const CUint160&, std::string&, CClaimValue* = nullptr);
 
 CMutableTransaction BuildTransaction(const uint256& prevhash);
 CMutableTransaction BuildTransaction(const CTransaction& prev, uint32_t prevout=0, unsigned int numOutputs=1, int locktime=0);

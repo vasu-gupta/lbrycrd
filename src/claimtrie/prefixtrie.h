@@ -10,10 +10,6 @@
 #include <vector>
 
 #include <boost/container/flat_map.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
-
-namespace bc = boost::container;
 
 class CMemFileConf
 {
@@ -34,7 +30,9 @@ class CPrefixTrie
         template <bool>
         friend class Iterator;
         friend class CPrefixTrie<TKey, TData>;
-        bc::flat_map<TKey, std::shared_ptr<Node>> children;
+        template <typename T, typename V>
+        using flat_map = boost::container::flat_map<T, V>;
+        flat_map<TKey, std::shared_ptr<Node>> children;
 
     public:
         Node() = default;
@@ -47,6 +45,8 @@ class CPrefixTrie
 
     using TChildren = decltype(Node::children);
 
+// needs to be public for swig
+public:
     template <bool IsConst>
     class Iterator
     {
@@ -113,7 +113,9 @@ class CPrefixTrie
 
         const TKey& key() const;
 
+#ifndef SWIG_INTERFACE
         data_reference data();
+#endif
         const TData& data() const;
 
         std::size_t depth() const;
@@ -122,6 +124,7 @@ class CPrefixTrie
         std::vector<Iterator> children() const;
     };
 
+private:
     size_t size;
     std::shared_ptr<Node> root;
 

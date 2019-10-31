@@ -9,6 +9,8 @@
 #include <boost/scope_exit.hpp>
 #include <boost/scoped_ptr.hpp>
 
+#define logPrint CLogPrint::global()
+
 CClaimTrieCacheExpirationFork::CClaimTrieCacheExpirationFork(CClaimTrie* base) : CClaimTrieCacheBase(base)
 {
     expirationHeight = nNextHeight;
@@ -134,10 +136,12 @@ std::string CClaimTrieCacheNormalizationFork::normalizeClaimName(const std::stri
     } catch (const boost::locale::conv::conversion_error& e) {
         return name;
     } catch (const std::bad_cast& e) {
-        LogPrintf("%s() is invalid or dependencies are missing: %s\n", __func__, e.what());
+        logPrint << "CClaimTrieCacheNormalizationFork::" << __func__ << "(): "
+                 << "is invalid or dependencies are missing: " <<  e.what() << Clog::endl;
         throw;
     } catch (const std::exception& e) { // TODO: change to use ... with current_exception() in c++11
-        LogPrintf("%s() had an unexpected exception: %s\n", __func__, e.what());
+        logPrint << "CClaimTrieCacheNormalizationFork::" << __func__ << "(): "
+                 << "had an unexpected exception: " << e.what() << Clog::endl;
         return name;
     }
 

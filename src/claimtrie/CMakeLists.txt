@@ -16,11 +16,50 @@ set(CLAIMTRIE_SRC
     trie.cpp
     txoutpoint.cpp
     uints.cpp
+# remove these helpers
+    ../crypto/sha512.cpp
+    ../crypto/chacha20.cpp
+    ../dbwrapper.cpp
+    ../logging.cpp
+    ../fs.cpp
+    ../util.cpp
+    ../utiltime.cpp
+    ../random.cpp
+    ../support/cleanse.cpp
+    ../chainparamsbase.cpp
+    ../utilstrencodings.cpp
 )
+
+if(BIND)
+    find_program(SWIG NAMES swig)
+    string(TOLOWER ${BIND} BIND)
+    set(INTERFACE_NAME libclaimtrie)
+    if(${BIND} STREQUAL "python")
+        find_package(PythonInterp 3.6 REQUIRED)
+        find_package(PythonLibs 3.6 REQUIRED)
+        set(BIND_INCLUDE_DIRS ${PYTHON_INCLUDE_DIRS})
+        set(SWIG_OPTIONS -python;-py3)
+        set(CMAKE_SHARED_LIBRARY_PREFIX _lib)
+    else()
+        message(FATAL_ERROR "Implement a handler for ${BIND}")
+    endif()
+    add_custom_command(OUTPUT ${INTERFACE_NAME}_wrap.cxx
+        COMMAND ${SWIG}
+        ARGS -c++ ${SWIG_OPTIONS} -outcurrentdir ${CMAKE_CURRENT_SOURCE_DIR}/${INTERFACE_NAME}.i
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+    set(CLAIMTRIE_SRC ${CLAIMTRIE_SRC}
+        ${INTERFACE_NAME}_wrap.cxx
+    )
+endif()
 
 add_library(claimtrie SHARED ${CLAIMTRIE_SRC})
 
 target_include_directories(claimtrie PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+if(BIND_INCLUDE_DIRS)
+    target_include_directories(claimtrie PRIVATE ${BIND_INCLUDE_DIRS})
+endif()
 
 # TODO remove leveldb depends
 set(LEVELDB_SRC
@@ -62,6 +101,7 @@ set(LEVELDB_SRC
     ../leveldb/util/logging.cc
     ../leveldb/util/options.cc
     ../leveldb/util/status.cc
+    ../leveldb/helpers/memenv/memenv.cc
 )
 
 if(WIN32)
@@ -72,6 +112,7 @@ if(WIN32)
 else()
     set(LEVELDB_SRC ${LEVELDB_SRC}
         ../leveldb/port/port_posix.cc
+        ../leveldb/port/port_posix_sse.cc
     )
 endif()
 
@@ -91,7 +132,7 @@ target_link_libraries(claimtrie PRIVATE leveldb)
 # leveldb depends end here
 
 # TODO remove BITCOIN depends
-target_include_directories(claimtrie PRIVATE ../ ../leveldb/include)
+target_include_directories(claimtrie PRIVATE ../ ../leveldb ../leveldb/include ../leveldb/helpers/memenv)
 # it's needed a configure call to create config files
 target_compile_definitions(claimtrie PRIVATE -DHAVE_CONFIG_H)
 # bitcoin depends end here

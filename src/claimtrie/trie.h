@@ -69,11 +69,11 @@ public:
     CClaimTrie(const CClaimTrie&) = delete;
     CClaimTrie(bool fMemory, bool fWipe,
                const std::string& dataDir,
-               int nNormalizedNameForkHeight,
-               int64_t nOriginalClaimExpirationTime,
-               int64_t nExtendedClaimExpirationTime,
-               int64_t nExtendedClaimExpirationForkHeight,
-               int64_t nAllClaimsInMerkleForkHeight,
+               int nNormalizedNameForkHeight = -1,
+               int64_t nOriginalClaimExpirationTime = -1,
+               int64_t nExtendedClaimExpirationTime = -1,
+               int64_t nExtendedClaimExpirationForkHeight = -1,
+               int64_t nAllClaimsInMerkleForkHeight = -1,
                int proportionalDelayFactor = 32, std::size_t cacheMB = 200);
 
     CClaimTrie& operator=(CClaimTrie&&) = delete;
@@ -81,14 +81,13 @@ public:
 
     bool SyncToDisk();
     bool ReadFromDisk(int nHeight, const CUint256& rootHash);
+    bool getClaimById(const std::string& claimId, std::string& name, CClaimValue* claim = nullptr);
 
     friend class CClaimTrieCacheBase;
     friend struct ClaimTrieChainFixture;
     friend class CClaimTrieCacheHashFork;
     friend class CClaimTrieCacheExpirationFork;
     friend class CClaimTrieCacheNormalizationFork;
-    friend bool getClaimById(const CUint160&, std::string&, CClaimValue*);
-    friend bool getClaimById(const std::string&, std::string&, CClaimValue*);
 
     std::size_t getTotalNamesInTrie() const;
     std::size_t getTotalClaimsInTrie() const;
@@ -97,7 +96,7 @@ public:
 protected:
     int nNextHeight = 0;
     std::unique_ptr<CDBWrapper> db;
-    const int nProportionalDelayFactor = 0;
+    const int nProportionalDelayFactor = 1;
 
     const int nNormalizedNameForkHeight = -1;
     const int64_t nOriginalClaimExpirationTime = -1;
@@ -110,6 +109,7 @@ struct CClaimTrieProofNode
 {
     CClaimTrieProofNode(std::vector<std::pair<unsigned char, CUint256>> children, bool hasValue, CUint256 valHash);
 
+    CClaimTrieProofNode() = default;
     CClaimTrieProofNode(CClaimTrieProofNode&&) = default;
     CClaimTrieProofNode(const CClaimTrieProofNode&) = default;
     CClaimTrieProofNode& operator=(CClaimTrieProofNode&&) = default;
@@ -188,10 +188,18 @@ public:
 template <typename T>
 using queueEntryType = std::pair<std::string, T>;
 
-typedef std::vector<queueEntryType<CClaimValue>> claimQueueRowType;
+#ifdef SWIG_INTERFACE // swig has a problem with using in typedef
+using nameClaimPair = std::pair<std::string, CClaimValue>;
+using nameSupportPair = std::pair<std::string, CSupportValue>;
+#else
+using nameClaimPair = queueEntryType<CClaimValue>;
+using nameSupportPair = queueEntryType<CSupportValue>;
+#endif
+
+typedef std::vector<nameClaimPair> claimQueueRowType;
 typedef std::map<int, claimQueueRowType> claimQueueType;
 
-typedef std::vector<queueEntryType<CSupportValue>> supportQueueRowType;
+typedef std::vector<nameSupportPair> supportQueueRowType;
 typedef std::map<int, supportQueueRowType> supportQueueType;
 
 typedef std::vector<CTxOutPointHeightType> queueNameRowType;
@@ -204,8 +212,6 @@ typedef std::map<int, expirationQueueRowType> expirationQueueType;
 
 typedef std::set<CClaimValue> claimIndexClaimListType;
 typedef std::vector<CClaimIndexElement> claimIndexElementListType;
-
-class CBlockIndex;
 
 class CClaimTrieCacheBase
 {

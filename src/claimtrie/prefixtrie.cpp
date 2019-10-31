@@ -5,6 +5,8 @@
 #include <limits>
 #include <memory>
 
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 #include <boost/interprocess/allocators/private_node_allocator.hpp>
 #include <boost/interprocess/indexes/null_index.hpp>
 #include <boost/interprocess/managed_mapped_file.hpp>

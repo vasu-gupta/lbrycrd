@@ -16,6 +16,11 @@ BOOST_AUTO_TEST_CASE(claimtriefixture_noop)
 
 BOOST_AUTO_TEST_SUITE_END()
 
+bool getClaimById(const CUint160& claimId, std::string& name, CClaimValue* claim)
+{
+    return pclaimTrie->getClaimById(claimId.GetHex(), name, claim);
+}
+
 CMutableTransaction BuildTransaction(const CTransaction& prev, uint32_t prevout, unsigned int numOutputs, int locktime)
 {
     CMutableTransaction tx;

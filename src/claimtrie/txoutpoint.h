@@ -5,6 +5,7 @@
 #include <uints.h>
 
 #include <algorithm>
+#include <string>
 #include <type_traits>
 #include <vector>
 #include <utility>
@@ -33,6 +34,8 @@ public:
 
     std::string ToString() const;
 };
+
+#ifndef SWIG_INTERFACE
 
 template <typename T>
 bool equals(const T& lhs, const T& rhs)
@@ -67,5 +70,7 @@ bool eraseOutPoint(std::vector<T>& cont, const C& point, T* value = nullptr)
     cont.erase(it);
     return true;
 }
+
+#endif // SWIG_INTERFACE
 
 #endif // CLAIMTRIE_TXOUTPUT_H

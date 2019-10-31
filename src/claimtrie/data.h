@@ -111,11 +111,15 @@ struct CNameOutPointType
     bool operator==(const CNameOutPointType& other) const;
 };
 
+#ifndef SWIG_INTERFACE
+
 template <typename K, typename V>
 bool equals(const std::pair<K, V>& pair, const CNameOutPointType& point)
 {
     return pair.first == point.name && pair.second.outPoint == point.outPoint;
 }
+
+#endif // SWIG_INTERFACE
 
 struct CClaimIndexElement
 {

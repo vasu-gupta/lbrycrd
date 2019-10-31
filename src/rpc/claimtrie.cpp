@@ -118,52 +118,6 @@ static bool extractValue(const CScript& scriptPubKey, std::string& sValue)
     return true;
 }
 
-bool getClaimById(const CUint160& claimId, std::string& name, CClaimValue* claim = nullptr)
-{
-    if (claimId.IsNull())
-        return false;
-
-    CClaimIndexElement element;
-    if (!pclaimTrie->db->Read(std::make_pair(CLAIM_BY_ID, claimId), element))
-        return false;
-    if (element.claim.claimId == claimId) {
-        name = element.name;
-        if (claim)
-            *claim = element.claim;
-        return true;
-    }
-    return false;
-}
-
-// name can be setted explicitly
-bool getClaimById(const std::string& partialId, std::string& name, CClaimValue* claim = nullptr)
-{
-    if (partialId.empty())
-        return false;
-
-    std::unique_ptr<CDBIterator> pcursor(pclaimTrie->db->NewIterator());
-
-    for (pcursor->SeekToFirst(); pcursor->Valid(); pcursor->Next()) {
-        std::pair<uint8_t, CUint160> key;
-        if (!pcursor->GetKey(key) || key.first != CLAIM_BY_ID)
-            continue;
-
-        if (key.second.GetHex().find(partialId) != 0)
-            continue;
-
-        CClaimIndexElement element;
-        if (pcursor->GetValue(element)) {
-            if (!name.empty() && name != element.name)
-                continue;
-            name = element.name;
-            if (claim)
-                *claim = element.claim;
-            return true;
-        }
-    }
-    return false;
-}
-
 std::vector<CClaimNsupports> seqSort(const std::vector<CClaimNsupports>& source)
 {
     auto claimsNsupports = source;
@@ -191,7 +145,7 @@ UniValue claimToJSON(const CCoinsViewCache& coinsCache, const CClaimValue& claim
     UniValue result(UniValue::VOBJ);
 
     std::string targetName;
-    if (getClaimById(claim.claimId, targetName))
+    if (pclaimTrie->getClaimById(claim.claimId.GetHex(), targetName))
         result.pushKV(T_NAME, escapeNonUtf8(targetName));
 
     auto& coin = coinsCache.AccessCoin(COutPoint(claim.outPoint));
@@ -547,8 +501,7 @@ UniValue getclaimbyid(const JSONRPCRequest& request)
     std::string name;
     CClaimValue claim;
     UniValue ret(UniValue::VOBJ);
-    bool found = claimId.length() == claimIdHexLength && getClaimById(CUint160S(claimId), name, &claim);
-    if (found || getClaimById(claimId, name, &claim)) {
+    if (pclaimTrie->getClaimById(claimId, name, &claim)) {
         auto csToName = trieCache.getClaimsForName(name);
         auto& claimNsupports = csToName.find(claim.claimId);
         if (!claimNsupports.IsNull()) {
